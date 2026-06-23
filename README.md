@@ -13,20 +13,22 @@ A real estate social media platform where agents, developers, and individuals sh
 - **Right panel** — Trending Locations, Hot Requests, and Top Communities discovery widgets
 - **Skeleton loading** — shimmer placeholder for every section (stories, each post type, right panel) before data arrives
 - **Responsive layout** — 3-column desktop with independent column scrolling; mobile-first single-column with bottom nav and floating action button
+- **Mobile navigation drawer** — slide-in panel from the right with nav links, quick links, feed filters, and primary CTAs
+- **Mobile create-post sheet** — slide-up bottom sheet with auto-growing textarea, post-type tabs, attachment buttons, and property-specific fields
 - **Next.js API Routes** — all data served from local route handlers with simulated latency for realistic UX testing
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 15.3.3 (App Router, Turbopack) |
-| Language | TypeScript 5 |
-| UI Library | React 19 |
-| Styling | Tailwind CSS 3.4 |
-| Icons | Phosphor Icons (`@phosphor-icons/react`) |
-| Fonts | Plus Jakarta Sans (primary), Nunito (rounded) |
+| Layer      | Technology                                    |
+| ---------- | --------------------------------------------- |
+| Framework  | Next.js 15.3.3 (App Router, Turbopack)        |
+| Language   | TypeScript 5                                  |
+| UI Library | React 19                                      |
+| Styling    | Tailwind CSS 3.4                              |
+| Icons      | Phosphor Icons (`@phosphor-icons/react`)      |
+| Fonts      | Plus Jakarta Sans (primary), Nunito (rounded) |
 
 ---
 
@@ -43,10 +45,11 @@ expertlisting/
 │   ├── layout.tsx                  # Root layout (Google Fonts, metadata)
 │   └── page.tsx                    # Root page — 3-column desktop / mobile feed layout
 ├── components/
-│   ├── Navbar.tsx                  # Top nav with company logo (next/image), links, mobile hamburger
+│   ├── Navbar.tsx                  # Top nav + mobile slide-in navigation drawer
 │   ├── LeftSidebar.tsx             # Desktop quick-nav, filters, Create Post button
 │   ├── StoriesBar.tsx              # Horizontal story strip with overlay arrows
-│   ├── CreatePostCard.tsx          # Composer card (Property / General / Request tabs)
+│   ├── CreatePostCard.tsx          # Desktop composer card (Property / General / Request tabs)
+│   ├── CreatePostModal.tsx         # Mobile slide-up sheet for composing posts
 │   ├── FeedSection.tsx             # Infinite-scroll feed (IntersectionObserver)
 │   ├── FeedPost.tsx                # Text / request post card + TextPostSkeleton
 │   ├── PropertyPost.tsx            # Property listing card + PropertyPostSkeleton
@@ -126,11 +129,11 @@ Returns a paginated page of feed posts. Page size is 7. Currently 2 pages (14 po
 
 Post types are a discriminated union keyed on `type`:
 
-| `type` | Component | Description |
-|---|---|---|
-| `"text"` | `FeedPost` | Plain text / request / general post |
+| `type`       | Component      | Description                                   |
+| ------------ | -------------- | --------------------------------------------- |
+| `"text"`     | `FeedPost`     | Plain text / request / general post           |
 | `"property"` | `PropertyPost` | For Rent / For Sale listing with image slider |
-| `"video"` | `VideoPost` | Video post with play/pause |
+| `"video"`    | `VideoPost`    | Video post with play/pause                    |
 
 ### `GET /api/right-panel`
 
@@ -146,18 +149,51 @@ Returns all three right-panel sections in one request.
 
 ---
 
+## Mobile UX
+
+### Navigation Drawer
+
+Tapping the hamburger icon in the navbar opens a 300 px slide-in panel from the right.
+
+**Contents:**
+
+- Logo + close button
+- **Browse** — Feed, Rent, Buy, Snagging, Shortlets, Find Professionals
+- **Quick Links** — Feed, Explore, Messages, My Boosts, Saved, Communities
+- **Filter Feed** — Location, Listing Type, Budget, User Type
+- **Sticky footer** — List Property (primary) + Sign In (outlined)
+
+Tapping the backdrop or the X button closes the drawer. Body scroll is locked while open.
+
+### Create Post Sheet
+
+Tapping the floating **+** button or the **List** tab in the bottom nav opens a slide-up bottom sheet (max 90dvh).
+
+**Contents:**
+
+- Drag handle + "Create Post" header with close button
+- **Tabs** — Property | General | Request (active tab highlighted in green)
+- **Audience selector** — "Everyone" pill with caret
+- **Auto-growing textarea** — placeholder text adapts to the selected tab; height expands as the user types
+- **Property extras** — Listing Type and Price fields shown only on the Property tab
+- **Sticky footer** — Image / Video / Location attachment buttons + Post button (disabled until text is entered)
+
+Body scroll is locked while the sheet is open. The textarea is auto-focused after the slide-in animation completes.
+
+---
+
 ## Design System
 
 ### Colors (CSS custom properties)
 
-| Token | Value | Usage |
-|---|---|---|
-| `--base` | `#141414` | Card / component background |
-| `--primary-main` | `#105b48` | Buttons, active states, avatar rings |
-| `--selected` | `#a8dc66` | Active nav underline, selected dot |
-| `--border1` | `rgba(255,255,255,0.07)` | Card borders, dividers |
-| `--text-primary` | `#f0f0f0` | Headings, names |
-| `--text-secondary` | `rgba(255,255,255,0.55)` | Body copy, labels |
+| Token              | Value                    | Usage                                |
+| ------------------ | ------------------------ | ------------------------------------ |
+| `--base`           | `#141414`                | Card / component background          |
+| `--primary-main`   | `#105b48`                | Buttons, active states, avatar rings |
+| `--selected`       | `#a8dc66`                | Active nav underline, selected dot   |
+| `--border1`        | `rgba(255,255,255,0.07)` | Card borders, dividers               |
+| `--text-primary`   | `#f0f0f0`                | Headings, names                      |
+| `--text-secondary` | `rgba(255,255,255,0.55)` | Body copy, labels                    |
 
 Page background: `#0d0d0d`
 
@@ -208,7 +244,18 @@ Each column scrolls independently. The page itself does not scroll.
 
 ### Mobile
 
-Full-width feed only. Left sidebar and right panel are hidden. `BottomNav` provides a fixed bottom tab bar (Feed / Search / List / Notification / Profile) and a floating green "+" button for creating posts.
+```
+┌─────────────────────────┐
+│  Navbar  [logo] [≡]     │  ← hamburger opens slide-in drawer
+├─────────────────────────┤
+│  StoriesBar             │
+│  FeedSection (scroll)   │
+│                         │
+│        [+]              │  ← FAB opens create-post sheet
+├─────────────────────────┤
+│ Feed Search + Notif Me  │  ← "+" tab also opens create-post sheet
+└─────────────────────────┘
+```
 
 ---
 
